@@ -28,6 +28,11 @@ const AuthProvider = ({ children }) => {
     } else {
       setLoading(false);
     }
+    
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, []);
 
   const fetchUser = async () => {
@@ -71,6 +76,25 @@ const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
+};
+
+// Utility Functions
+const showNotification = (title, body, options = {}) => {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '/favicon.ico', ...options });
+  }
+};
+
+const downloadFile = (content, filename, type = 'application/json') => {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 // Components
@@ -230,7 +254,9 @@ const HabitForm = ({ habit, onSave, onCancel }) => {
     target_value: habit?.target_value || '',
     target_unit: habit?.target_unit || '',
     category: habit?.category || '',
-    color: habit?.color || '#8B5CF6'
+    color: habit?.color || '#8B5CF6',
+    reminder_enabled: habit?.reminder_enabled || false,
+    reminder_time: habit?.reminder_time || '09:00'
   });
 
   const handleSubmit = (e) => {
@@ -347,6 +373,30 @@ const HabitForm = ({ habit, onSave, onCancel }) => {
             </div>
           </div>
           
+          <div className="form-group">
+            <label className="form-checkbox">
+              <input
+                type="checkbox"
+                checked={formData.reminder_enabled}
+                onChange={(e) => setFormData({...formData, reminder_enabled: e.target.checked})}
+              />
+              <span className="checkmark"></span>
+              Enable Reminders
+            </label>
+          </div>
+          
+          {formData.reminder_enabled && (
+            <div className="form-group">
+              <label className="form-label">Reminder Time</label>
+              <input
+                type="time"
+                value={formData.reminder_time}
+                onChange={(e) => setFormData({...formData, reminder_time: e.target.value})}
+                className="form-input"
+              />
+            </div>
+          )}
+          
           <div className="form-actions">
             <button type="button" onClick={onCancel} className="btn-secondary">
               Cancel
@@ -387,9 +437,16 @@ const HabitCard = ({ habitData, onEdit, onDelete, onTrack }) => {
           {habit.description && (
             <p className="habit-description">{habit.description}</p>
           )}
-          {habit.category && (
-            <span className="habit-category">{habit.category}</span>
-          )}
+          <div className="habit-meta">
+            {habit.category && (
+              <span className="habit-category">{habit.category}</span>
+            )}
+            {habit.reminder_enabled && (
+              <span className="habit-reminder">
+                🔔 {habit.reminder_time}
+              </span>
+            )}
+          </div>
         </div>
         
         <div className="habit-actions">
@@ -429,25 +486,109 @@ const HabitCard = ({ habitData, onEdit, onDelete, onTrack }) => {
   );
 };
 
+const AnalyticsChart = ({ data }) => {
+  if (!data || !data.length) return <div>No data available</div>;
+
+  const maxRate = Math.max(...data.map(d => d.completion_rate));
+  const minRate = Math.min(...data.map(d => d.completion_rate));
+  const range = maxRate - minRate || 1;
+
+  return (
+    <div className="chart-container">
+      <h3 className="chart-title">7-Day Progress</h3>
+      <div className="chart-wrapper">
+        <div className="chart-bars">
+          {data.slice(-7).map((day, index) => {
+            const height = ((day.completion_rate - minRate) / range) * 100;
+            return (
+              <div key={index} className="chart-bar-container">
+                <div 
+                  className="chart-bar"
+                  style={{ 
+                    height: `${Math.max(height, 5)}%`,
+                    backgroundColor: day.completion_rate >= 80 ? '#10B981' : 
+                                   day.completion_rate >= 60 ? '#F59E0B' : '#EF4444'
+                  }}
+                  title={`${day.completion_rate}% completion`}
+                />
+                <span className="chart-label">
+                  {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [streakData, setStreakData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [reminders, setReminders] = useState([]);
 
   useEffect(() => {
-    fetchDashboard();
+    fetchAllData();
+    
+    // Set up reminder checking
+    const reminderInterval = setInterval(checkReminders, 60000); // Check every minute
+    checkReminders(); // Check immediately
+    
+    return () => clearInterval(reminderInterval);
   }, []);
 
-  const fetchDashboard = async () => {
+  const fetchAllData = async () => {
     try {
-      const response = await axios.get(`${API}/dashboard`);
-      setDashboardData(response.data);
+      setLoading(true);
+      const [dashboardRes, analyticsRes, streaksRes] = await Promise.all([
+        axios.get(`${API}/dashboard`),
+        axios.get(`${API}/analytics/overview?days=30`),
+        axios.get(`${API}/stats/streaks`)
+      ]);
+      
+      setDashboardData(dashboardRes.data);
+      setAnalyticsData(analyticsRes.data);
+      setStreakData(streaksRes.data);
     } catch (error) {
-      console.error('Failed to fetch dashboard:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkReminders = async () => {
+    try {
+      const response = await axios.get(`${API}/notifications/reminders`);
+      const pendingReminders = response.data;
+      
+      // Check if it's time for any reminders
+      const currentTime = new Date();
+      const currentHour = currentTime.getHours();
+      const currentMinute = currentTime.getMinutes();
+      
+      pendingReminders.forEach(reminder => {
+        if (reminder.reminder_time) {
+          const [hour, minute] = reminder.reminder_time.split(':').map(Number);
+          if (hour === currentHour && minute === currentMinute) {
+            showNotification(
+              'Habit Reminder',
+              `Time to work on: ${reminder.name}`,
+              { tag: reminder.habit_id }
+            );
+          }
+        }
+      });
+      
+      setReminders(pendingReminders);
+    } catch (error) {
+      console.error('Failed to fetch reminders:', error);
     }
   };
 
@@ -470,7 +611,7 @@ const Dashboard = () => {
       }
       setShowHabitForm(false);
       setEditingHabit(null);
-      fetchDashboard();
+      fetchAllData();
     } catch (error) {
       console.error('Failed to save habit:', error);
     }
@@ -480,7 +621,7 @@ const Dashboard = () => {
     if (window.confirm('Are you sure you want to delete this habit?')) {
       try {
         await axios.delete(`${API}/habits/${habitId}`);
-        fetchDashboard();
+        fetchAllData();
       } catch (error) {
         console.error('Failed to delete habit:', error);
       }
@@ -490,15 +631,254 @@ const Dashboard = () => {
   const handleTrackHabit = async (habitId, recordData) => {
     try {
       await axios.post(`${API}/habits/${habitId}/track`, recordData);
-      fetchDashboard();
+      fetchAllData();
+      
+      // Show success notification
+      showNotification('Habit Tracked!', 'Great job staying consistent! 🎉');
     } catch (error) {
       console.error('Failed to track habit:', error);
+    }
+  };
+
+  const handleExport = async (format) => {
+    try {
+      const response = await axios.get(`${API}/export/habits?format=${format}`, {
+        responseType: 'blob'
+      });
+      
+      const filename = `habits_export_${new Date().toISOString().split('T')[0]}.${format}`;
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export data:', error);
+    }
+  };
+
+  const handleImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      const response = await axios.post(`${API}/import/habits`, {
+        habits: data.habits || [],
+        records: data.records || []
+      });
+      
+      alert(`Import completed! ${response.data.imported_habits} habits and ${response.data.imported_records} records imported.`);
+      fetchAllData();
+    } catch (error) {
+      console.error('Failed to import data:', error);
+      alert('Failed to import data. Please check the file format.');
+    }
+    
+    event.target.value = ''; // Reset file input
+  };
+
+  const handleShare = async () => {
+    try {
+      const response = await axios.get(`${API}/share/progress`);
+      const shareData = response.data;
+      
+      if (navigator.share) {
+        await navigator.share({
+          title: 'My Habit Progress',
+          text: shareData.share_text,
+          url: window.location.href
+        });
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(shareData.share_text);
+        alert('Progress shared to clipboard!');
+      }
+    } catch (error) {
+      console.error('Failed to share:', error);
     }
   };
 
   if (loading) {
     return <div className="loading">Loading your habits...</div>;
   }
+
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'dashboard':
+        return (
+          <>
+            {dashboardData && (
+              <>
+                <div className="stats-grid">
+                  <div className="stats-card stats-card-total">
+                    <h3 className="stats-title">Total Habits</h3>
+                    <p className="stats-value">{dashboardData.stats.total_habits}</p>
+                  </div>
+                  <div className="stats-card stats-card-completed">
+                    <h3 className="stats-title">Completed Today</h3>
+                    <p className="stats-value">{dashboardData.stats.completed_today}</p>
+                  </div>
+                  <div className="stats-card stats-card-rate">
+                    <h3 className="stats-title">Completion Rate</h3>
+                    <p className="stats-value">{dashboardData.stats.completion_rate}%</p>
+                  </div>
+                </div>
+
+                <div className="habits-section">
+                  <h2 className="section-title">Today's Habits</h2>
+                  {dashboardData.habits.length === 0 ? (
+                    <div className="empty-state">
+                      <p>No habits yet. Create your first habit to get started!</p>
+                      <button onClick={handleCreateHabit} className="btn-primary">
+                        Create First Habit
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="habits-grid">
+                      {dashboardData.habits.map((habitData) => (
+                        <HabitCard
+                          key={habitData.habit.id}
+                          habitData={habitData}
+                          onEdit={handleEditHabit}
+                          onDelete={handleDeleteHabit}
+                          onTrack={handleTrackHabit}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        );
+      
+      case 'analytics':
+        return (
+          <div className="analytics-section">
+            <h2 className="section-title">Analytics & Reports</h2>
+            
+            {analyticsData && (
+              <div className="analytics-grid">
+                <AnalyticsChart data={analyticsData.chart_data} />
+                
+                <div className="stats-summary">
+                  <h3>30-Day Summary</h3>
+                  <div className="summary-stats">
+                    <div className="summary-item">
+                      <span className="summary-label">Total Completions</span>
+                      <span className="summary-value">{analyticsData.summary.total_completions}</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Average Rate</span>
+                      <span className="summary-value">{analyticsData.summary.average_completion_rate}%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {analyticsData.habit_stats.length > 0 && (
+                  <div className="habit-performance">
+                    <h3>Habit Performance</h3>
+                    <div className="performance-list">
+                      {analyticsData.habit_stats.slice(0, 5).map((habit, index) => (
+                        <div key={habit.habit_id} className="performance-item">
+                          <span className="performance-name">{habit.name}</span>
+                          <span className="performance-rate">{habit.success_rate}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {streakData && streakData.length > 0 && (
+              <div className="streaks-section">
+                <h3>Current Streaks</h3>
+                <div className="streaks-grid">
+                  {streakData.map((streak) => (
+                    <div key={streak.habit_id} className="streak-card">
+                      <h4>{streak.habit_name}</h4>
+                      <div className="streak-info">
+                        <div className="streak-current">
+                          <span className="streak-number">{streak.current_streak}</span>
+                          <span className="streak-label">Current</span>
+                        </div>
+                        <div className="streak-best">
+                          <span className="streak-number">{streak.best_streak}</span>
+                          <span className="streak-label">Best</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      
+      case 'settings':
+        return (
+          <div className="settings-section">
+            <h2 className="section-title">Settings & Tools</h2>
+            
+            <div className="settings-grid">
+              <div className="settings-card">
+                <h3>Data Management</h3>
+                <div className="settings-actions">
+                  <button onClick={() => handleExport('json')} className="btn-secondary">
+                    Export JSON
+                  </button>
+                  <button onClick={() => handleExport('csv')} className="btn-secondary">
+                    Export CSV
+                  </button>
+                  <label className="btn-secondary file-input-label">
+                    Import Data
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleImport}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                </div>
+              </div>
+              
+              <div className="settings-card">
+                <h3>Notifications</h3>
+                <div className="settings-info">
+                  <p>Notification Status: {
+                    'Notification' in window 
+                      ? Notification.permission === 'granted' ? '✅ Enabled' : '❌ Disabled'
+                      : 'Not Supported'
+                  }</p>
+                  {reminders.length > 0 && (
+                    <p>{reminders.length} habits with reminders enabled</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="settings-card">
+                <h3>Social Sharing</h3>
+                <div className="settings-actions">
+                  <button onClick={handleShare} className="btn-primary">
+                    Share Progress
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="dashboard">
@@ -522,48 +902,32 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {dashboardData && (
-        <>
-          <div className="stats-grid">
-            <div className="stats-card stats-card-total">
-              <h3 className="stats-title">Total Habits</h3>
-              <p className="stats-value">{dashboardData.stats.total_habits}</p>
-            </div>
-            <div className="stats-card stats-card-completed">
-              <h3 className="stats-title">Completed Today</h3>
-              <p className="stats-value">{dashboardData.stats.completed_today}</p>
-            </div>
-            <div className="stats-card stats-card-rate">
-              <h3 className="stats-title">Completion Rate</h3>
-              <p className="stats-value">{dashboardData.stats.completion_rate}%</p>
-            </div>
-          </div>
+      <nav className="nav-tabs">
+        <div className="nav-content">
+          <button 
+            className={`nav-tab ${currentView === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setCurrentView('dashboard')}
+          >
+            Dashboard
+          </button>
+          <button 
+            className={`nav-tab ${currentView === 'analytics' ? 'active' : ''}`}
+            onClick={() => setCurrentView('analytics')}
+          >
+            Analytics
+          </button>
+          <button 
+            className={`nav-tab ${currentView === 'settings' ? 'active' : ''}`}
+            onClick={() => setCurrentView('settings')}
+          >
+            Settings
+          </button>
+        </div>
+      </nav>
 
-          <div className="habits-section">
-            <h2 className="section-title">Today's Habits</h2>
-            {dashboardData.habits.length === 0 ? (
-              <div className="empty-state">
-                <p>No habits yet. Create your first habit to get started!</p>
-                <button onClick={handleCreateHabit} className="btn-primary">
-                  Create First Habit
-                </button>
-              </div>
-            ) : (
-              <div className="habits-grid">
-                {dashboardData.habits.map((habitData) => (
-                  <HabitCard
-                    key={habitData.habit.id}
-                    habitData={habitData}
-                    onEdit={handleEditHabit}
-                    onDelete={handleDeleteHabit}
-                    onTrack={handleTrackHabit}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+      <main className="main-content">
+        {renderCurrentView()}
+      </main>
 
       {showHabitForm && (
         <HabitForm
