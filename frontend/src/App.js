@@ -567,6 +567,15 @@ const Dashboard = () => {
     }
   };
 
+  const fetchSlackInstallInfo = async () => {
+    try {
+      const response = await axios.get(`${API}/slack/install`);
+      setSlackInstallInfo(response.data);
+    } catch (error) {
+      console.error('Failed to fetch Slack install info:', error);
+    }
+  };
+
   const checkReminders = async () => {
     try {
       const response = await axios.get(`${API}/notifications/reminders`);
