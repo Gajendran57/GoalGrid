@@ -4,6 +4,7 @@ import time
 from datetime import datetime, date
 import uuid
 import random
+import io
 
 # Get the backend URL from the frontend .env file
 BACKEND_URL = "https://a4559290-93cc-445f-81b0-a357c0d691a9.preview.emergentagent.com"
@@ -22,7 +23,10 @@ test_habits = [
         "description": "10 minutes of mindfulness meditation",
         "habit_type": "yes_no",
         "category": "Wellness",
-        "color": "#4F46E5"
+        "color": "#4F46E5",
+        "reminder_enabled": True,
+        "reminder_time": "08:00",
+        "slack_notifications": True
     },
     {
         "name": "Drink Water",
@@ -31,7 +35,10 @@ test_habits = [
         "target_value": 8,
         "target_unit": "glasses",
         "category": "Health",
-        "color": "#0EA5E9"
+        "color": "#0EA5E9",
+        "reminder_enabled": True,
+        "reminder_time": "10:00",
+        "slack_notifications": False
     },
     {
         "name": "Exercise",
@@ -40,7 +47,10 @@ test_habits = [
         "target_value": 30,
         "target_unit": "minutes",
         "category": "Fitness",
-        "color": "#10B981"
+        "color": "#10B981",
+        "reminder_enabled": False,
+        "reminder_time": None,
+        "slack_notifications": False
     }
 ]
 
@@ -49,7 +59,12 @@ test_results = {
     "auth": {"success": False, "details": ""},
     "habit_crud": {"success": False, "details": ""},
     "habit_tracking": {"success": False, "details": ""},
-    "dashboard": {"success": False, "details": ""}
+    "dashboard": {"success": False, "details": ""},
+    "analytics": {"success": False, "details": ""},
+    "export_import": {"success": False, "details": ""},
+    "notifications": {"success": False, "details": ""},
+    "social_sharing": {"success": False, "details": ""},
+    "slack_integration": {"success": False, "details": ""}
 }
 
 # Global variables
