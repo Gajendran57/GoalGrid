@@ -397,6 +397,18 @@ const HabitForm = ({ habit, onSave, onCancel }) => {
             </div>
           )}
           
+          <div className="form-group">
+            <label className="form-checkbox">
+              <input
+                type="checkbox"
+                checked={formData.slack_notifications || false}
+                onChange={(e) => setFormData({...formData, slack_notifications: e.target.checked})}
+              />
+              <span className="checkmark"></span>
+              Send Slack Notifications
+            </label>
+          </div>
+          
           <div className="form-actions">
             <button type="button" onClick={onCancel} className="btn-secondary">
               Cancel
