@@ -236,3 +236,5 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Created comprehensive habit tracking app with all requested features. Need to test backend APIs first before frontend testing. Implementation includes JWT auth, three habit types (yes/no, quantifiable, time-based), full CRUD operations, daily tracking, and statistics. Please test backend functionality thoroughly."
+  - agent: "testing"
+    message: "Completed backend testing. Found and fixed an issue with habit tracking where MongoDB couldn't encode datetime.date objects directly. Fixed by converting date objects to ISO format strings before storing in the database. All backend APIs are now working correctly, including authentication, habit CRUD operations, habit tracking, and dashboard/statistics. The backend is ready for frontend integration."
