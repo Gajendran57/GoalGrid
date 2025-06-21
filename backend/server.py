@@ -257,7 +257,10 @@ async def track_habit(habit_id: str, record_data: HabitRecordCreate, current_use
             date=today,
             **record_data.dict()
         )
-        await db.habit_records.insert_one(record.dict())
+        # Convert date to string before storing in MongoDB
+        record_dict = record.dict()
+        record_dict["date"] = record_dict["date"].isoformat()
+        await db.habit_records.insert_one(record_dict)
         return record
 
 @api_router.get("/habits/{habit_id}/records")
