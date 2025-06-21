@@ -277,6 +277,15 @@ async def get_habit_records(habit_id: str, days: int = 30, current_user: User = 
         "date": {"$gte": start_date.isoformat()}
     }).to_list(1000)
     
+    # Convert date strings back to date objects for the response
+    for record in records:
+        if isinstance(record["date"], str):
+            try:
+                record["date"] = date.fromisoformat(record["date"])
+            except ValueError:
+                # If date can't be parsed, keep it as string
+                pass
+    
     return [HabitRecord(**record) for record in records]
 
 # Dashboard and Stats Routes
