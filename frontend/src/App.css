@@ -918,19 +918,57 @@ body {
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Utility Classes */
-.w-4 {
-  width: 1rem;
+/* Slack Setup Modal */
+.slack-setup-modal .modal-content {
+  max-width: 700px;
+  max-height: 80vh;
 }
 
-.h-4 {
-  height: 1rem;
+.slack-setup-content {
+  margin: 1rem 0;
 }
 
-.mr-2 {
-  margin-right: 0.5rem;
+.slack-setup-content h4 {
+  margin: 1.5rem 0 0.5rem 0;
+  color: #1e293b;
+  font-weight: 600;
 }
 
-.text-red-500 {
-  color: #ef4444;
+.webhook-url {
+  background: #f1f5f9;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+  display: block;
+  word-break: break-all;
+  margin-bottom: 1rem;
+}
+
+.setup-instructions {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+  line-height: 1.6;
+}
+
+.setup-instructions li {
+  margin-bottom: 0.5rem;
+}
+
+.env-vars {
+  background: #f1f5f9;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.env-var {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.env-var strong {
+  color: #8b5cf6;
 }
