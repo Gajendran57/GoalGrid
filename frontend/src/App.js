@@ -915,9 +915,74 @@ const Dashboard = () => {
                   <button onClick={handleShare} className="btn-primary">
                     Share Progress
                   </button>
+                  {slackStatus?.configured && (
+                    <button onClick={handleSlackShare} className="btn-secondary">
+                      Share to Slack
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="settings-card">
+                <h3>Slack Integration</h3>
+                <div className="settings-info">
+                  <p>Status: {slackStatus?.configured ? '✅ Connected' : '❌ Not Configured'}</p>
+                  {user.slack_user_id ? (
+                    <p>✅ Your Slack account is connected</p>
+                  ) : (
+                    <p>❌ Slack account not connected</p>
+                  )}
+                </div>
+                <div className="settings-actions">
+                  {!user.slack_user_id && (
+                    <button onClick={handleConnectSlack} className="btn-secondary">
+                      Connect Slack Account
+                    </button>
+                  )}
+                  <button onClick={fetchSlackInstallInfo} className="btn-secondary">
+                    Setup Instructions
+                  </button>
                 </div>
               </div>
             </div>
+
+            {slackInstallInfo && (
+              <div className="slack-setup-modal">
+                <div className="modal-overlay">
+                  <div className="modal-content">
+                    <h3 className="modal-title">Slack Integration Setup</h3>
+                    
+                    <div className="slack-setup-content">
+                      <h4>Webhook URL:</h4>
+                      <code className="webhook-url">{slackInstallInfo.webhook_url}</code>
+                      
+                      <h4>Setup Instructions:</h4>
+                      <ol className="setup-instructions">
+                        {slackInstallInfo.setup_instructions.map((instruction, index) => (
+                          <li key={index}>{instruction}</li>
+                        ))}
+                      </ol>
+                      
+                      <h4>Required Environment Variables:</h4>
+                      <div className="env-vars">
+                        {Object.entries(slackInstallInfo.required_env_vars).map(([key, description]) => (
+                          <div key={key} className="env-var">
+                            <strong>{key}:</strong> {description}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => setSlackInstallInfo(null)} 
+                      className="btn-primary"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       
