@@ -717,6 +717,39 @@ const Dashboard = () => {
     }
   };
 
+  const handleSlackShare = async () => {
+    const channel = prompt('Enter Slack channel name (e.g., #general):');
+    if (!channel) return;
+
+    try {
+      const response = await axios.post(`${API}/share/slack?channel=${encodeURIComponent(channel)}`);
+      if (response.data.success) {
+        alert('Progress shared to Slack successfully!');
+      } else {
+        alert(`Failed to share to Slack: ${response.data.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to share to Slack:', error);
+      alert('Failed to share to Slack. Please check your Slack integration.');
+    }
+  };
+
+  const handleConnectSlack = async () => {
+    const slackUserId = prompt('Enter your Slack User ID (found in your Slack profile):');
+    if (!slackUserId) return;
+
+    try {
+      await axios.post(`${API}/auth/slack/connect`, {
+        slack_user_id: slackUserId
+      });
+      alert('Slack account connected successfully!');
+      fetchAllData();
+    } catch (error) {
+      console.error('Failed to connect Slack:', error);
+      alert('Failed to connect Slack account.');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading your habits...</div>;
   }
