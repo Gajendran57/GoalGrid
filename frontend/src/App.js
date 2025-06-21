@@ -528,11 +528,13 @@ const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [streakData, setStreakData] = useState(null);
+  const [slackStatus, setSlackStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
   const [currentView, setCurrentView] = useState('dashboard');
   const [reminders, setReminders] = useState([]);
+  const [slackInstallInfo, setSlackInstallInfo] = useState(null);
 
   useEffect(() => {
     fetchAllData();
@@ -547,15 +549,17 @@ const Dashboard = () => {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [dashboardRes, analyticsRes, streaksRes] = await Promise.all([
+      const [dashboardRes, analyticsRes, streaksRes, slackStatusRes] = await Promise.all([
         axios.get(`${API}/dashboard`),
         axios.get(`${API}/analytics/overview?days=30`),
-        axios.get(`${API}/stats/streaks`)
+        axios.get(`${API}/stats/streaks`),
+        axios.get(`${API}/slack/status`)
       ]);
       
       setDashboardData(dashboardRes.data);
       setAnalyticsData(analyticsRes.data);
       setStreakData(streaksRes.data);
+      setSlackStatus(slackStatusRes.data);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
