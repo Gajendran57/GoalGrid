@@ -417,6 +417,262 @@ def test_delete_habit():
         print_test_result("Delete Habit", False, response.text)
         return False
 
+# Enhanced Feature Tests
+
+def test_analytics_overview():
+    print_test_header("Analytics Overview")
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    all_success = True
+    
+    # Test with different time periods
+    time_periods = [7, 14, 30]
+    
+    for days in time_periods:
+        url = f"{API_URL}/analytics/overview?days={days}"
+        response = requests.get(url, headers=headers)
+        
+        print(f"Testing analytics for {days} days:")
+        print_response(response)
+        
+        if response.status_code == 200:
+            data = response.json()
+            required_fields = ["period", "chart_data", "category_stats", "habit_stats", "summary"]
+            success = all(field in data for field in required_fields)
+            
+            if success:
+                # Verify chart data structure
+                chart_data = data.get("chart_data", [])
+                if chart_data:
+                    chart_success = all("date" in item and "completion_rate" in item for item in chart_data)
+                    success = success and chart_success
+                
+                # Verify summary structure
+                summary = data.get("summary", {})
+                summary_fields = ["total_habits", "total_completions", "average_completion_rate"]
+                summary_success = all(field in summary for field in summary_fields)
+                success = success and summary_success
+            
+            print_test_result(f"Analytics Overview ({days} days)", success)
+            if not success:
+                all_success = False
+        else:
+            print_test_result(f"Analytics Overview ({days} days)", False, response.text)
+            all_success = False
+    
+    test_results["analytics"]["success"] = all_success
+    test_results["analytics"]["details"] = "Successfully tested analytics overview with different time periods" if all_success else "Failed analytics overview tests"
+    
+    return all_success
+
+def test_export_habits():
+    print_test_header("Export Habits")
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    all_success = True
+    
+    # Test JSON export
+    json_url = f"{API_URL}/export/habits?format=json"
+    json_response = requests.get(json_url, headers=headers)
+    
+    print("Testing JSON export:")
+    print(f"Status Code: {json_response.status_code}")
+    print(f"Content-Type: {json_response.headers.get('Content-Type', 'Not set')}")
+    
+    if json_response.status_code == 200:
+        try:
+            # Try to parse as JSON
+            json_data = json_response.json() if json_response.headers.get('Content-Type') == 'application/json' else json.loads(json_response.text)
+            json_success = "habits" in json_data and "records" in json_data
+            print_test_result("JSON Export", json_success)
+        except:
+            json_success = False
+            print_test_result("JSON Export", False, "Invalid JSON response")
+    else:
+        json_success = False
+        print_test_result("JSON Export", False, json_response.text)
+    
+    # Test CSV export
+    csv_url = f"{API_URL}/export/habits?format=csv"
+    csv_response = requests.get(csv_url, headers=headers)
+    
+    print("Testing CSV export:")
+    print(f"Status Code: {csv_response.status_code}")
+    print(f"Content-Type: {csv_response.headers.get('Content-Type', 'Not set')}")
+    
+    if csv_response.status_code == 200:
+        csv_success = "text/csv" in csv_response.headers.get('Content-Type', '') or len(csv_response.text) > 0
+        print_test_result("CSV Export", csv_success)
+    else:
+        csv_success = False
+        print_test_result("CSV Export", False, csv_response.text)
+    
+    all_success = json_success and csv_success
+    
+    test_results["export_import"]["success"] = all_success
+    test_results["export_import"]["details"] = "Successfully tested habit export in both formats" if all_success else "Failed export tests"
+    
+    return all_success
+
+def test_import_habits():
+    print_test_header("Import Habits")
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    # Create sample import data
+    import_data = {
+        "habits": [
+            {
+                "name": "Imported Reading Habit",
+                "description": "Daily reading for 30 minutes",
+                "habit_type": "time_based",
+                "target_value": 30,
+                "target_unit": "minutes",
+                "category": "Learning",
+                "color": "#F59E0B",
+                "reminder_enabled": True,
+                "reminder_time": "20:00"
+            }
+        ],
+        "records": []
+    }
+    
+    url = f"{API_URL}/import/habits"
+    response = requests.post(url, json=import_data, headers=headers)
+    
+    print_response(response)
+    
+    if response.status_code == 200:
+        data = response.json()
+        success = data.get("success", False) and data.get("imported_habits", 0) > 0
+        print_test_result("Import Habits", success, f"Imported {data.get('imported_habits', 0)} habits")
+        return success
+    else:
+        print_test_result("Import Habits", False, response.text)
+        return False
+
+def test_notifications_reminders():
+    print_test_header("Notifications and Reminders")
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    url = f"{API_URL}/notifications/reminders"
+    response = requests.get(url, headers=headers)
+    
+    print_response(response)
+    
+    if response.status_code == 200:
+        data = response.json()
+        success = isinstance(data, list)
+        
+        # Check structure of reminder data
+        if data and len(data) > 0:
+            reminder = data[0]
+            required_fields = ["habit_id", "name"]
+            structure_success = all(field in reminder for field in required_fields)
+            success = success and structure_success
+        
+        test_results["notifications"]["success"] = success
+        test_results["notifications"]["details"] = f"Successfully retrieved {len(data)} pending reminders" if success else "Failed to retrieve reminders"
+        
+        print_test_result("Get Reminders", success, f"Retrieved {len(data)} pending reminders")
+        return success
+    else:
+        test_results["notifications"]["success"] = False
+        test_results["notifications"]["details"] = f"Failed to retrieve reminders: {response.text}"
+        
+        print_test_result("Get Reminders", False, response.text)
+        return False
+
+def test_social_sharing():
+    print_test_header("Social Sharing")
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    # Test get share data
+    url = f"{API_URL}/share/progress"
+    response = requests.get(url, headers=headers)
+    
+    print_response(response)
+    
+    if response.status_code == 200:
+        data = response.json()
+        required_fields = ["user_name", "period", "completion_rate", "total_habits", "share_text"]
+        success = all(field in data for field in required_fields)
+        
+        test_results["social_sharing"]["success"] = success
+        test_results["social_sharing"]["details"] = "Successfully generated shareable progress data" if success else "Failed to generate share data"
+        
+        print_test_result("Get Share Data", success)
+        return success
+    else:
+        test_results["social_sharing"]["success"] = False
+        test_results["social_sharing"]["details"] = f"Failed to get share data: {response.text}"
+        
+        print_test_result("Get Share Data", False, response.text)
+        return False
+
+def test_slack_integration():
+    print_test_header("Slack Integration")
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    all_success = True
+    
+    # Test Slack status
+    status_url = f"{API_URL}/slack/status"
+    status_response = requests.get(status_url, headers=headers)
+    
+    print("Testing Slack status:")
+    print_response(status_response)
+    
+    if status_response.status_code == 200:
+        data = status_response.json()
+        status_success = "configured" in data and "webhook_url" in data
+        print_test_result("Slack Status", status_success)
+    else:
+        status_success = False
+        print_test_result("Slack Status", False, status_response.text)
+    
+    # Test Slack install info
+    install_url = f"{API_URL}/slack/install"
+    install_response = requests.get(install_url, headers=headers)
+    
+    print("Testing Slack install info:")
+    print_response(install_response)
+    
+    if install_response.status_code == 200:
+        data = install_response.json()
+        install_success = "webhook_url" in data and "setup_instructions" in data
+        print_test_result("Slack Install Info", install_success)
+    else:
+        install_success = False
+        print_test_result("Slack Install Info", False, install_response.text)
+    
+    # Test Slack user connection
+    connect_url = f"{API_URL}/auth/slack/connect"
+    connect_data = {
+        "slack_user_id": "U1234567890",
+        "slack_team_id": "T1234567890"
+    }
+    connect_response = requests.post(connect_url, json=connect_data, headers=headers)
+    
+    print("Testing Slack user connection:")
+    print_response(connect_response)
+    
+    if connect_response.status_code == 200:
+        connect_success = True
+        print_test_result("Slack User Connection", True)
+    else:
+        connect_success = False
+        print_test_result("Slack User Connection", False, connect_response.text)
+    
+    all_success = status_success and install_success and connect_success
+    
+    test_results["slack_integration"]["success"] = all_success
+    test_results["slack_integration"]["details"] = "Successfully tested all Slack integration endpoints" if all_success else "Failed some Slack integration tests"
+    
+    return all_success
+
 def run_all_tests():
     print("\n\n")
     print("="*80)
