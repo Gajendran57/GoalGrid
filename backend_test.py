@@ -705,6 +705,14 @@ def run_all_tests():
             test_get_dashboard()
             test_get_streaks()
             
+            # Enhanced feature tests
+            test_analytics_overview()
+            test_export_habits()
+            test_import_habits()
+            test_notifications_reminders()
+            test_social_sharing()
+            test_slack_integration()
+            
             # Finally, test deletion
             test_delete_habit()
     
