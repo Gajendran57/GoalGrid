@@ -289,6 +289,10 @@ test_plan:
     - "Habit CRUD Operations"
     - "Habit Tracking System"
     - "Dashboard and Statistics"
+    - "Export and Import System"
+    - "Notifications and Reminders"
+    - "Social Sharing Features"
+    - "Slack Integration"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
