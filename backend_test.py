@@ -7,7 +7,7 @@ import random
 import io
 
 # Get the backend URL from the frontend .env file
-BACKEND_URL = "https://a4559290-93cc-445f-81b0-a357c0d691a9.preview.emergentagent.com"
+BACKEND_URL = "https://habit-master-2.preview.emergentagent.com"
 API_URL = f"{BACKEND_URL}/api"
 
 # Test data
