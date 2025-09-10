@@ -593,6 +593,9 @@ async def export_habits(format: str = "json", current_user: User = Depends(get_c
     for habit in habits:
         habit_data = dict(habit)
         habit_data.pop("user_id", None)
+        # Convert ObjectId to string if present
+        if "_id" in habit_data:
+            habit_data["_id"] = str(habit_data["_id"])
         habit_data["created_at"] = habit_data["created_at"].isoformat() if isinstance(habit_data.get("created_at"), datetime) else habit_data.get("created_at")
         export_habits.append(habit_data)
     
@@ -600,6 +603,9 @@ async def export_habits(format: str = "json", current_user: User = Depends(get_c
     for record in records:
         record_data = dict(record)
         record_data.pop("user_id", None)
+        # Convert ObjectId to string if present
+        if "_id" in record_data:
+            record_data["_id"] = str(record_data["_id"])
         record_data["date"] = record_data["date"] if isinstance(record_data["date"], str) else record_data["date"].isoformat()
         record_data["created_at"] = record_data["created_at"].isoformat() if isinstance(record_data.get("created_at"), datetime) else record_data.get("created_at")
         export_records.append(record_data)
